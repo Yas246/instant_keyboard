@@ -1,0 +1,31 @@
+name: Build Sons APK
+
+on:
+  push:
+    branches: [main, wip]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v3
+      - name: Build release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
+      - name: Publish to dev release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev
+          name: "Dernière version de dev"
+          files: app/build/outputs/apk/release/*.apk
+          make_latest: true

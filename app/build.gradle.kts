@@ -15,12 +15,21 @@ android {
         minSdk = 21
         targetSdk = 35
         versionCode = 3901
-        versionName = "3.9"
+        versionName = "3.9-sons"
         ndk {
             abiFilters.clear()
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
         }
         proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("keystore/keyboard-release.keystore")
+            storePassword = "clavier123"
+            keyAlias = "clavier"
+            keyPassword = "clavier123"
+        }
     }
 
     buildTypes {
@@ -29,6 +38,7 @@ android {
             isShrinkResources = false
             isDebuggable = false
             isJniDebuggable = false
+            signingConfig = signingConfigs.getByName("release")
         }
         create("nouserlib") { // same as release, but does not allow the user to provide a library
             isMinifyEnabled = true
