@@ -36,7 +36,17 @@ jobs:
       - name: Build release APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease 2>&1 | tee /tmp/build.log
+          exit ${PIPESTATUS[0]}
+      - name: Publish error log to repo (diagnostic, removed once green)
+        if: failure()
+        run: |
+          { echo "=== BUILD ERROR TAIL ($(date -u +%FT%TZ)) ==="; tail -n 150 /tmp/build.log; } > ci-error.log
+          git config user.name "ci-log"
+          git config user.email "ci-log@users.noreply.github.com"
+          git add ci-error.log
+          git commit -m "ci: build error log [skip ci]" || echo "nothing to commit"
+          git push || echo "push failed"
       - name: Publish to dev release
         uses: softprops/action-gh-release@v2
         with:
