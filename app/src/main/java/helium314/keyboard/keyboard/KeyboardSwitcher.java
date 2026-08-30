@@ -35,6 +35,8 @@ import helium314.keyboard.keyboard.clipboard.ClipboardHistoryView;
 import helium314.keyboard.keyboard.emoji.EmojiPalettesView;
 import helium314.keyboard.keyboard.internal.KeyboardState;
 import helium314.keyboard.keyboard.internal.keyboard_parser.EmojiParserKt;
+import helium314.keyboard.keyboard.sounds.SoundsCallback;
+import helium314.keyboard.keyboard.sounds.SoundsPalettesView;
 import helium314.keyboard.latin.InputView;
 import helium314.keyboard.latin.KeyboardWrapperView;
 import helium314.keyboard.latin.LatinIME;
@@ -69,6 +71,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     private SuggestionStripView mSuggestionStripView;
     private FrameLayout mStripContainer;
     private ClipboardHistoryView mClipboardHistoryView;
+    private SoundsPalettesView mSoundsPalettesView;
     private TextView mFakeToastView;
     private LatinIME mLatinIME;
     private RichInputMethodManager mRichImm;
@@ -341,6 +344,8 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mSuggestionStripView.setVisibility(stripVisibility);
         mClipboardHistoryView.setVisibility(View.GONE);
         mClipboardHistoryView.stopClipboardHistory();
+        mSoundsPalettesView.setVisibility(View.GONE);
+        mSoundsPalettesView.stopSoundsPalettes();
     }
 
     // Implements {@link KeyboardState.SwitchActions}.
@@ -384,6 +389,34 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mClipboardHistoryView.startClipboardHistory(mLatinIME.getClipboardHistoryManager(), mKeyboardView.getKeyVisualAttribute(),
                 mLatinIME.getCurrentInputEditorInfo(), mLatinIME.mKeyboardActionListener);
         mClipboardHistoryView.setVisibility(View.VISIBLE);
+    }
+
+    public void setSoundsKeyboard() {
+        if (DEBUG_ACTION) {
+            Log.d(TAG, "setSoundsKeyboard");
+        }
+        mMainKeyboardFrame.setVisibility(View.VISIBLE);
+        mKeyboardView.setVisibility(View.GONE);
+        mSuggestionStripView.setVisibility(View.GONE);
+        mStripContainer.setVisibility(View.GONE);
+        mEmojiTabStripView.setVisibility(View.GONE);
+        mClipboardStripScrollView.setVisibility(View.GONE);
+        mEmojiPalettesView.setVisibility(View.GONE);
+        mClipboardHistoryView.setVisibility(View.GONE);
+        mSoundsPalettesView.startSoundsPalettes();
+        mSoundsPalettesView.setVisibility(View.VISIBLE);
+    }
+
+    public void toggleSoundsPanel() {
+        if (isShowingSoundsPalettes()) {
+            setAlphabetKeyboard();
+        } else {
+            setSoundsKeyboard();
+        }
+    }
+
+    public boolean isShowingSoundsPalettes() {
+        return mSoundsPalettesView != null && mSoundsPalettesView.isShown();
     }
 
     @Override
@@ -453,6 +486,9 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
 
                 mClipboardHistoryView.stopClipboardHistory();
                 mClipboardHistoryView.setVisibility(View.GONE);
+
+                mSoundsPalettesView.stopSoundsPalettes();
+                mSoundsPalettesView.setVisibility(View.GONE);
 
                 mMainKeyboardFrame.setVisibility(View.VISIBLE);
                 mKeyboardView.setVisibility(View.VISIBLE);
@@ -657,6 +693,8 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
             return mEmojiPalettesView;
         } else if (isShowingClipboardHistory()) {
             return mClipboardHistoryView;
+        } else if (isShowingSoundsPalettes()) {
+            return mSoundsPalettesView;
         }
         return mKeyboardView;
     }
@@ -690,6 +728,9 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         if (mClipboardHistoryView != null) {
             mClipboardHistoryView.stopClipboardHistory();
         }
+        if (mSoundsPalettesView != null) {
+            mSoundsPalettesView.stopSoundsPalettes();
+        }
     }
 
     public void trimMemory() {
@@ -717,6 +758,13 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mMainKeyboardFrame = mCurrentInputView.findViewById(R.id.main_keyboard_frame);
         mEmojiPalettesView = mCurrentInputView.findViewById(R.id.emoji_palettes_view);
         mClipboardHistoryView = mCurrentInputView.findViewById(R.id.clipboard_history_view);
+        mSoundsPalettesView = mCurrentInputView.findViewById(R.id.sounds_palettes_view);
+        mSoundsPalettesView.setCallback(new SoundsCallback() {
+            @Override public void onSendSound(helium314.keyboard.soundscore.SoundItem item) {
+                // task 8: SoundDownloader.downloadAndShare(mLatinIME, item);
+            }
+            @Override public void onSwitchToTextKeyboard() { setAlphabetKeyboard(); }
+        });
         mFakeToastView = mCurrentInputView.findViewById(R.id.fakeToast);
 
         mKeyboardViewWrapper = mCurrentInputView.findViewById(R.id.keyboard_view_wrapper);

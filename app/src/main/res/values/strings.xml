@@ -1092,4 +1092,14 @@ New dictionary:
     <string name="gesture_data_links">Information on gesture data gathering on:</string>
 
     <!-- new strings should go above the section for gesture data gathering -->
+
+    <string name="search_sounds_hint">search a sound…</string>
+    <string name="sounds_back_to_keyboard">back to typing</string>
+    <string name="sounds_tab_trending">trending</string>
+    <string name="sounds_tab_favorites">favorites</string>
+    <string name="sounds_tab_recents">recents</string>
+    <string name="sounds_empty">search a sound to start</string>
+    <string name="sounds_error_network">no connection to myinstants</string>
+    <string name="sounds_retry">retry</string>
+    <string name="sounds_preview_failed">cannot play this sound</string>
 </resources>

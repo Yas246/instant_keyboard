@@ -493,4 +493,14 @@ Nouveau dictionnaire:
     <string name="gesture_data_please_switch_keyboard">Veuillez passer à %s</string>
     <string name="gesture_data_share_limit">Pour éviter de dépasser les limites de taille, seuls les %s premiers mots seront exportés</string>
     <string name="gesture_data_links">Informations sur la collecte de données gestuelles sur :</string>
+
+    <string name="search_sounds_hint">cherche un son…</string>
+    <string name="sounds_back_to_keyboard">retour au clavier</string>
+    <string name="sounds_tab_trending">populaires</string>
+    <string name="sounds_tab_favorites">favoris</string>
+    <string name="sounds_tab_recents">récents</string>
+    <string name="sounds_empty">cherche un son pour commencer</string>
+    <string name="sounds_error_network">pas de connexion à myinstants</string>
+    <string name="sounds_retry">réessayer</string>
+    <string name="sounds_preview_failed">impossible de jouer ce son</string>
 </resources>
