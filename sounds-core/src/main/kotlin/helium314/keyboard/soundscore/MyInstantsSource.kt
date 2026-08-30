@@ -11,12 +11,12 @@ class MyInstantsSource(
     override fun search(query: String): List<SoundItem> {
         val encoded = URLEncoder.encode(query, "UTF-8")
         val doc = Jsoup.connect("$baseUrl/fr/search/?name=$encoded")
-            .userAgent(USER_AGENT).get()
+            .userAgent(USER_AGENT).timeout(TIMEOUT_MS).get()
         return parse(doc)
     }
 
     override fun trending(): List<SoundItem> {
-        val doc = Jsoup.connect("$baseUrl/fr/").userAgent(USER_AGENT).get()
+        val doc = Jsoup.connect("$baseUrl/fr/").userAgent(USER_AGENT).timeout(TIMEOUT_MS).get()
         return parse(doc)
     }
 
@@ -33,7 +33,9 @@ class MyInstantsSource(
     private fun absolutize(url: String) = if (url.startsWith("http")) url else baseUrl + url
 
     private companion object {
-        const val USER_AGENT = "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36"
+        // UserAgent complet vérifié contre le site en ligne (le UA court était rejeté)
+        const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+        const val TIMEOUT_MS = 10000
         val PLAY_REGEX = Regex("""play\('([^']+)'.*?loader-(\d+)""")
         val ID_REGEX = Regex("""loader-(\d+)""")
     }

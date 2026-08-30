@@ -583,12 +583,15 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         // Reload the entire keyboard, and switch to the previous layout
         final boolean wasEmoji = isShowingEmojiPalettes();
         final boolean wasClipboard = isShowingClipboardHistory();
+        final boolean wasSounds = isShowingSoundsPalettes();
         loadKeyboard(mLatinIME.getCurrentInputEditorInfo(), Settings.getValues(),
                 mLatinIME.getCurrentAutoCapsState(), mLatinIME.getCurrentRecapitalizeState(), null);
         if (wasEmoji) {
             setEmojiKeyboard();
         } else if (wasClipboard) {
             setClipboardKeyboard();
+        } else if (wasSounds) {
+            setSoundsKeyboard();
         }
     }
 

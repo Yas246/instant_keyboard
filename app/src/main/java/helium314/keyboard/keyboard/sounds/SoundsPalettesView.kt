@@ -2,6 +2,7 @@
 package helium314.keyboard.keyboard.sounds
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.os.Handler
@@ -9,13 +10,11 @@ import android.os.Looper
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.R
 import helium314.keyboard.soundscore.MyInstantsSource
 import helium314.keyboard.soundscore.SoundItem
@@ -27,15 +26,13 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     private val source = MyInstantsSource()
     private var callback: SoundsCallback? = null
     private val adapter = SoundsAdapter()
-    private var player: MediaPlayer? = null
-    private var searchRunnable: Runnable? = null
-    private var previewGeneration = 0
-    private var searchGeneration = 0
+    @Volatile private var player: MediaPlayer? = null
+    @Volatile private var previewGeneration = 0
+    @Volatile private var searchGeneration = 0
     private val store by lazy {
         SoundStore(java.io.File(context.filesDir, "sounds_store.properties"))
     }
     private var currentTab = TAB_TRENDING
-    private var pendingQuery: String? = null
 
     init {
         LayoutInflater.from(context).inflate(R.layout.sounds_palettes_view_children, this, true)
@@ -56,50 +53,38 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
             store.toggleFavorite(item)
             adapter.notifyDataSetChanged()
         }
-        val edit = findViewById<EditText>(R.id.sounds_search_edit)
-        edit.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                searchRunnable?.let(mainHandler::removeCallbacks)
-                runSearch(edit.text.toString()); true
-            } else false
-        }
-        edit.addTextChangedListener(object : android.text.TextWatcher {
-            override fun afterTextChanged(s: android.text.Editable?) {
-                searchRunnable?.let(mainHandler::removeCallbacks)
-                val q = s?.toString()?.trim() ?: ""
-                if (q.length < 2) return
-                searchRunnable = Runnable { runSearch(q) }.also { mainHandler.postDelayed(it, 400) }
+        // Plan B : la saisie passe par SoundsSearchActivity. Un EditText dans le panneau de
+        // l'IME ne reçoit jamais le texte (notre propre clavier est la méthode de saisie
+        // active) ; HeliBoard utilise le même mécanisme d'activity pour la recherche emoji.
+        findViewById<TextView>(R.id.sounds_search_button).apply {
+            text = "🔍 " + context.getString(R.string.sounds_search_action)
+            setOnClickListener {
+                context.startActivity(
+                    Intent(context, SoundsSearchActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                )
             }
-            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
-        })
+        }
         // onglets : populaires (réseau), favoris / récents (store local)
         findViewById<TextView>(R.id.sounds_tab_trending).setOnClickListener { switchTab(TAB_TRENDING) }
         findViewById<TextView>(R.id.sounds_tab_favorites).setOnClickListener { switchTab(TAB_FAVORITES) }
         findViewById<TextView>(R.id.sounds_tab_recents).setOnClickListener { switchTab(TAB_RECENTS) }
-        // taper le message d'état relance la recherche ou l'onglet courant : « réessayer »
-        findViewById<TextView>(R.id.sounds_status_view).setOnClickListener {
-            val q = pendingQuery
-            if (q != null) runSearch(q) else switchTab(currentTab)
-        }
+        // taper le message d'état relance l'onglet courant : « réessayer »
+        // (la recherche vit dans SoundsSearchActivity, plus d'état de requête ici)
+        findViewById<TextView>(R.id.sounds_status_view).setOnClickListener { switchTab(currentTab) }
     }
 
     fun setCallback(cb: SoundsCallback?) { callback = cb }
 
     fun startSoundsPalettes() {
-        currentTab = TAB_TRENDING // l'onglet affiché suit le contenu chargé
-        loadInBackground { source.trending() }
+        // l'état (onglet, recherche) survit à la fermeture/réouverture du panneau
+        if (adapter.items.isEmpty()) loadInBackground { source.trending() }
     }
 
     fun stopSoundsPalettes() {
         searchGeneration++
         stopPreview()
         mainHandler.removeCallbacksAndMessages(null)
-    }
-
-    private fun runSearch(query: String) {
-        pendingQuery = query
-        loadInBackground { source.search(query) }
     }
 
     private fun switchTab(tab: Int) {
@@ -125,7 +110,11 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         Thread {
             val items = try { load() } catch (e: Exception) {
                 if (gen == searchGeneration) {
-                    mainHandler.post { showStatus(context.getString(R.string.sounds_error_network)) }
+                    // message diagnostic + indice « réessayer » : le statut est cliquable pour relancer
+                    val message = context.getString(R.string.sounds_error_network) +
+                        "\n(" + (e.message ?: e.javaClass.simpleName) + ")" +
+                        "\n" + context.getString(R.string.sounds_retry)
+                    mainHandler.post { showStatus(message) }
                 }
                 return@Thread
             }
@@ -162,12 +151,13 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
                 }
                 player = p
                 p.start()
-            } catch (e: Exception) {
+            } catch (t: Throwable) {
                 runCatching { p.release() }
                 if (gen == previewGeneration) {
                     player = null
                     mainHandler.post {
-                        android.widget.Toast.makeText(context, R.string.sounds_preview_failed, Toast.LENGTH_SHORT).show()
+                        // toast routé par KeyboardSwitcher : fallback in-IME sur API 33+ sans POST_NOTIFICATIONS
+                        KeyboardSwitcher.getInstance().showToast(context.getString(R.string.sounds_preview_failed), true)
                     }
                 }
             }

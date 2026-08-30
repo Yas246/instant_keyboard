@@ -39,7 +39,8 @@
         <helium314.keyboard.keyboard.sounds.SoundsPalettesView
             android:id="@+id/sounds_palettes_view"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
             android:visibility="gone" />
 
         <ImageButton
