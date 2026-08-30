@@ -13,11 +13,13 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import helium314.keyboard.latin.R
 import helium314.keyboard.soundscore.MyInstantsSource
 import helium314.keyboard.soundscore.SoundItem
+import helium314.keyboard.soundscore.SoundStore
 
 class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(context, attrs) {
 
@@ -29,6 +31,10 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     private var searchRunnable: Runnable? = null
     private var previewGeneration = 0
     private var searchGeneration = 0
+    private val store by lazy {
+        SoundStore(java.io.File(context.filesDir, "sounds_store.properties"))
+    }
+    private var currentTab = TAB_TRENDING
 
     init {
         LayoutInflater.from(context).inflate(R.layout.sounds_palettes_view_children, this, true)
@@ -40,7 +46,15 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
             callback?.onSwitchToTextKeyboard()
         }
         adapter.onPlay = { item -> playPreview(item) }
-        adapter.onSend = { item -> callback?.onSendSound(it) }
+        adapter.onSend = { item ->
+            store.addRecent(item) // récents mis à jour avant l'envoi effectif
+            callback?.onSendSound(it)
+        }
+        adapter.isFavorite = { store.isFavorite(it.id) }
+        adapter.favoriteListener = { item ->
+            store.toggleFavorite(item)
+            adapter.notifyDataSetChanged()
+        }
         val edit = findViewById<EditText>(R.id.sounds_search_edit)
         edit.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
@@ -58,15 +72,20 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
         })
-        // onglets : populaires affiche trending, favoris/récents remplis en task 9
-        findViewById<TextView>(R.id.sounds_tab_trending).setOnClickListener {
-            loadInBackground { source.trending() }
-        }
+        // onglets : populaires (réseau), favoris / récents (store local)
+        findViewById<TextView>(R.id.sounds_tab_trending).setOnClickListener { switchTab(TAB_TRENDING) }
+        findViewById<TextView>(R.id.sounds_tab_favorites).setOnClickListener { switchTab(TAB_FAVORITES) }
+        findViewById<TextView>(R.id.sounds_tab_recents).setOnClickListener { switchTab(TAB_RECENTS) }
+        // taper le message d'état relance l'onglet courant : « réessayer » après une erreur réseau
+        findViewById<TextView>(R.id.sounds_status_view).setOnClickListener { switchTab(currentTab) }
     }
 
     fun setCallback(cb: SoundsCallback?) { callback = cb }
 
-    fun startSoundsPalettes() { loadInBackground { source.trending() } }
+    fun startSoundsPalettes() {
+        currentTab = TAB_TRENDING // l'onglet affiché suit le contenu chargé
+        loadInBackground { source.trending() }
+    }
 
     fun stopSoundsPalettes() {
         searchGeneration++
@@ -75,6 +94,23 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     }
 
     private fun runSearch(query: String) = loadInBackground { source.search(query) }
+
+    private fun switchTab(tab: Int) {
+        currentTab = tab
+        when (tab) {
+            TAB_TRENDING -> loadInBackground { source.trending() }
+            TAB_FAVORITES -> showList(store.favorites())
+            TAB_RECENTS -> showList(store.recents())
+        }
+    }
+
+    private fun showList(items: List<SoundItem>) {
+        if (items.isEmpty()) { showStatus(context.getString(R.string.sounds_empty)); return }
+        findViewById<RecyclerView>(R.id.sounds_recycler).visibility = VISIBLE
+        findViewById<TextView>(R.id.sounds_status_view).visibility = GONE
+        adapter.items = items
+        adapter.notifyDataSetChanged()
+    }
 
     private fun loadInBackground(load: () -> List<SoundItem>) {
         val gen = ++searchGeneration
@@ -144,6 +180,8 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         var items: List<SoundItem> = emptyList()
         var onPlay: ((SoundItem) -> Unit)? = null   // ▶ branché en task 7
         var onSend: ((SoundItem) -> Unit)? = null   // ➤ branché en task 8
+        var favoriteListener: ((SoundItem) -> Unit)? = null
+        var isFavorite: (SoundItem) -> Boolean = { false }
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
             Holder(LayoutInflater.from(parent.context).inflate(R.layout.item_sound, parent, false))
         override fun getItemCount() = items.size
@@ -153,7 +191,12 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
             view.findViewById<TextView>(R.id.sound_title).text = item.title
             view.findViewById<TextView>(R.id.sound_play).setOnClickListener { onPlay?.invoke(item) }
             view.findViewById<TextView>(R.id.sound_send).setOnClickListener { onSend?.invoke(item) }
+            val fav = view.findViewById<TextView>(R.id.sound_favorite)
+            fav.text = if (isFavorite(item)) "★" else "☆"
+            fav.setOnClickListener { favoriteListener?.invoke(item) }
         }
         class Holder(v: android.view.View) : RecyclerView.ViewHolder(v)
     }
+
+    private companion object { const val TAB_TRENDING = 0; const val TAB_FAVORITES = 1; const val TAB_RECENTS = 2 }
 }
