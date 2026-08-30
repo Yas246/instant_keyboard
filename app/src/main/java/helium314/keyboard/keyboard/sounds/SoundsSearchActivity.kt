@@ -204,7 +204,9 @@ class SoundsSearchActivity : ComponentActivity() {
         return if (theme.resolveAttribute(attr, typedValue, true)) typedValue.data else Color.DKGRAY
     }
 
-    private inner class ResultsAdapter : RecyclerView.Adapter<ResultsAdapter.Holder>() {
+    // pas « inner » : Kotlin interdit une classe imbriquée (Holder) dans une classe inner,
+    // et l'adaptateur ne référence aucun membre de l'activity
+    private class ResultsAdapter : RecyclerView.Adapter<ResultsAdapter.Holder>() {
         var items: List<SoundItem> = emptyList()
         var onPlay: ((SoundItem) -> Unit)? = null
         var onSend: ((SoundItem) -> Unit)? = null
