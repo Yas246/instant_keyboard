@@ -699,13 +699,13 @@ Attendu: job `build` vert (le `when` exhaustif garantit qu'aucun enregistrement 
 
 - [ ] **Step 1: Layout du panneau**
 
-`app/src/main/res/layout/sounds_palettes_view.xml` :
+Créer `app/src/main/res/layout/sounds_palettes_view_children.xml` (le contenu du panneau ;
+il sera gonflé DANS la vue custom `SoundsPalettesView` — d'où le nom `_children`) :
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/sounds_palette_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -834,6 +834,7 @@ Dans `app/src/main/res/values/styles.xml`, ajouter :
     <string name="sounds_empty">search a sound to start</string>
     <string name="sounds_error_network">no connection to myinstants</string>
     <string name="sounds_retry">retry</string>
+    <string name="sounds_preview_failed">cannot play this sound</string>
 ```
 
 `values-fr/strings.xml` :
@@ -847,6 +848,7 @@ Dans `app/src/main/res/values/styles.xml`, ajouter :
     <string name="sounds_empty">cherche un son pour commencer</string>
     <string name="sounds_error_network">pas de connexion à myinstants</string>
     <string name="sounds_retry">réessayer</string>
+    <string name="sounds_preview_failed">impossible de jouer ce son</string>
 ```
 
 - [ ] **Step 4: Callback + vue**
@@ -920,19 +922,7 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
 }
 ```
 
-IMPORTANT — inflation: le layout XML ci-dessus EST la racine de la classe (`LinearLayout` custom non nécessaire côté XML). Pour éviter le double emboîtement, créer `app/src/main/res/layout/sounds_palettes_view_children.xml` = contenu du Step 1 mais avec racine `<merge>` impossible ici → à la place : mettre dans le Step 1 la racine `merge` suivante et inclure ce fichier depuis `main_keyboard_frame.xml` :
-
-`app/src/main/res/layout/sounds_palettes_view.xml` (racine) :
-
-```xml
-<merge xmlns:android="http://schemas.android.com/apk/res/android"
-    tools:parentTag="LinearLayout"
-    xmlns:tools="http://schemas.android.com/tools" />
-```
-
-et déplacer TOUT le contenu LinearLayout du Step 1 dans `sounds_palettes_view_children.xml` (racine `LinearLayout`, sans l'id `sounds_palette_container` sur la racine mais en gardant tous les ids internes). L'inflation `inflate(R.layout.sounds_palettes_view_children, this, true)` fusionne alors dans la vue.
-
-Dans `main_keyboard_frame.xml`, ajouter après l'include `clipboard_history_view` :
+Puis, dans `main_keyboard_frame.xml`, ajouter après l'include `clipboard_history_view` (la vue custom est déclarée directement dans le layout, et gonfle elle-même `sounds_palettes_view_children` dans son `init`) :
 
 ```xml
         <helium314.keyboard.keyboard.sounds.SoundsPalettesView
@@ -1103,7 +1093,7 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         findViewById<TextView>(R.id.sounds_back_to_keyboard).setOnClickListener {
             callback?.onSwitchToTextKeyboard()
         }
-        adapter.listener = { item -> stopPreview() }
+        adapter.onPlay = { item -> playPreview(item) }
         val edit = findViewById<EditText>(R.id.sounds_search_edit)
         edit.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) { runSearch(edit.text.toString()); true } else false
@@ -1171,6 +1161,9 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
                 p.start()
             } catch (e: Exception) {
                 player = null
+                mainHandler.post {
+                    android.widget.Toast.makeText(context, R.string.sounds_preview_failed, Toast.LENGTH_SHORT).show()
+                }
             }
         }.start()
     }
@@ -1182,7 +1175,8 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
 
     private class SoundsAdapter : RecyclerView.Adapter<SoundsAdapter.Holder>() {
         var items: List<SoundItem> = emptyList()
-        var listener: ((SoundItem) -> Unit)? = null
+        var onPlay: ((SoundItem) -> Unit)? = null   // ▶ branché en task 7
+        var onSend: ((SoundItem) -> Unit)? = null   // ➤ branché en task 8
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
             Holder(LayoutInflater.from(parent.context).inflate(R.layout.item_sound, parent, false))
         override fun getItemCount() = items.size
@@ -1190,14 +1184,15 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
             val item = items[position]
             val view = holder.itemView
             view.findViewById<TextView>(R.id.sound_title).text = item.title
-            view.setOnClickListener { listener?.invoke(item) }
+            view.findViewById<TextView>(R.id.sound_play).setOnClickListener { onPlay?.invoke(item) }
+            view.findViewById<TextView>(R.id.sound_send).setOnClickListener { onSend?.invoke(item) }
         }
         class Holder(v: android.view.View) : RecyclerView.ViewHolder(v)
     }
 }
 ```
 
-Brancher aussi ▶ : dans `onBindViewHolder`, `view.findViewById<TextView>(R.id.sound_play).setOnClickListener { listener?.invoke(item) }` et renommer le champ `listener` en `onPlayClick` si plus clair ; la cellule ➤ reste inerte jusqu'à la Task 8.
+La cellule ➤ reste inerte jusqu'à la Task 8 (son `onSend` n'est pas encore câblé).
 
 - [ ] **Step 3: Commit + push + CI + install (M2)**
 
