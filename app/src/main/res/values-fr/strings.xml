@@ -501,6 +501,7 @@ Nouveau dictionnaire:
     <string name="sounds_tab_favorites">favoris</string>
     <string name="sounds_tab_recents">récents</string>
     <string name="sounds_empty">cherche un son pour commencer</string>
+    <string name="sounds_no_results">aucun résultat</string>
     <string name="sounds_error_network">pas de connexion à myinstants</string>
     <string name="sounds_retry">réessayer</string>
     <string name="sounds_preview_failed">impossible de jouer ce son</string>

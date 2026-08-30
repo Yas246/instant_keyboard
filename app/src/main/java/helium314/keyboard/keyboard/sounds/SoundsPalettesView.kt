@@ -18,7 +18,6 @@ import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.R
 import helium314.keyboard.soundscore.MyInstantsSource
 import helium314.keyboard.soundscore.SoundItem
-import helium314.keyboard.soundscore.SoundStore
 
 class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(context, attrs) {
 
@@ -29,9 +28,7 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     @Volatile private var player: MediaPlayer? = null
     @Volatile private var previewGeneration = 0
     @Volatile private var searchGeneration = 0
-    private val store by lazy {
-        SoundStore(java.io.File(context.filesDir, "sounds_store.properties"))
-    }
+    private val store by lazy { SoundStores.get(context) }
     private var currentTab = TAB_TRENDING
 
     init {

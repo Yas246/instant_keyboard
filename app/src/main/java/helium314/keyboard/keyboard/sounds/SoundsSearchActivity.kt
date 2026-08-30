@@ -23,8 +23,6 @@ import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.R
 import helium314.keyboard.soundscore.MyInstantsSource
 import helium314.keyboard.soundscore.SoundItem
-import helium314.keyboard.soundscore.SoundStore
-import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -41,7 +39,7 @@ class SoundsSearchActivity : ComponentActivity() {
     private val searchGeneration = AtomicInteger(0)
     private val previewGeneration = AtomicInteger(0)
     private val adapter = ResultsAdapter()
-    private val store by lazy { SoundStore(File(filesDir, "sounds_store.properties")) }
+    private val store by lazy { SoundStores.get(this) }
 
     @Volatile private var player: MediaPlayer? = null
     private var searchRunnable: Runnable? = null
@@ -144,10 +142,15 @@ class SoundsSearchActivity : ComponentActivity() {
             }
             if (searchGeneration.get() != gen) return@Thread
             runOnUiThread {
-                statusView.visibility = android.view.View.GONE
-                recycler.visibility = android.view.View.VISIBLE
-                adapter.items = items
-                adapter.notifyDataSetChanged()
+                if (items.isEmpty()) {
+                    // aucun résultat : message + liste masquée (miroir de showList du panneau)
+                    showStatus(getString(R.string.sounds_no_results))
+                } else {
+                    statusView.visibility = android.view.View.GONE
+                    recycler.visibility = android.view.View.VISIBLE
+                    adapter.items = items
+                    adapter.notifyDataSetChanged()
+                }
             }
         }.start()
     }

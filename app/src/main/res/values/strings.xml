@@ -1100,6 +1100,7 @@ New dictionary:
     <string name="sounds_tab_favorites">favorites</string>
     <string name="sounds_tab_recents">recents</string>
     <string name="sounds_empty">search a sound to start</string>
+    <string name="sounds_no_results">no results</string>
     <string name="sounds_error_network">no connection to myinstants</string>
     <string name="sounds_retry">retry</string>
     <string name="sounds_preview_failed">cannot play this sound</string>
