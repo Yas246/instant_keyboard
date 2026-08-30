@@ -315,6 +315,7 @@ Nouveau dictionnaire:
     <string name="auto_show_toolbar">Afficher automatiquement la barre d\'outils</string>
     <string name="language_switch_key_behavior">Comportement de la touche de changement de langue</string>
     <string name="emoji" tools:keep="@string/emoji">Emoji</string>
+    <string name="sounds">sons</string>
     <string name="gesture_fast_typing_cooldown">Temps de réponse de la saisie rapide</string>
     <string name="gesture_fast_typing_cooldown_instant">Commencer toujours instantanément</string>
     <string name="customize_currencies">Personnaliser les devises</string>
