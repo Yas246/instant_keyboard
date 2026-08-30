@@ -35,6 +35,7 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         SoundStore(java.io.File(context.filesDir, "sounds_store.properties"))
     }
     private var currentTab = TAB_TRENDING
+    private var pendingQuery: String? = null
 
     init {
         LayoutInflater.from(context).inflate(R.layout.sounds_palettes_view_children, this, true)
@@ -48,7 +49,7 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         adapter.onPlay = { item -> playPreview(item) }
         adapter.onSend = { item ->
             store.addRecent(item) // récents mis à jour avant l'envoi effectif
-            callback?.onSendSound(it)
+            callback?.onSendSound(item)
         }
         adapter.isFavorite = { store.isFavorite(it.id) }
         adapter.favoriteListener = { item ->
@@ -76,8 +77,11 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         findViewById<TextView>(R.id.sounds_tab_trending).setOnClickListener { switchTab(TAB_TRENDING) }
         findViewById<TextView>(R.id.sounds_tab_favorites).setOnClickListener { switchTab(TAB_FAVORITES) }
         findViewById<TextView>(R.id.sounds_tab_recents).setOnClickListener { switchTab(TAB_RECENTS) }
-        // taper le message d'état relance l'onglet courant : « réessayer » après une erreur réseau
-        findViewById<TextView>(R.id.sounds_status_view).setOnClickListener { switchTab(currentTab) }
+        // taper le message d'état relance la recherche ou l'onglet courant : « réessayer »
+        findViewById<TextView>(R.id.sounds_status_view).setOnClickListener {
+            val q = pendingQuery
+            if (q != null) runSearch(q) else switchTab(currentTab)
+        }
     }
 
     fun setCallback(cb: SoundsCallback?) { callback = cb }
@@ -93,14 +97,17 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         mainHandler.removeCallbacksAndMessages(null)
     }
 
-    private fun runSearch(query: String) = loadInBackground { source.search(query) }
+    private fun runSearch(query: String) {
+        pendingQuery = query
+        loadInBackground { source.search(query) }
+    }
 
     private fun switchTab(tab: Int) {
         currentTab = tab
         when (tab) {
             TAB_TRENDING -> loadInBackground { source.trending() }
-            TAB_FAVORITES -> showList(store.favorites())
-            TAB_RECENTS -> showList(store.recents())
+            TAB_FAVORITES -> { searchGeneration++; showList(store.favorites()) }
+            TAB_RECENTS -> { searchGeneration++; showList(store.recents()) }
         }
     }
 
