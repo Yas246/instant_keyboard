@@ -40,6 +40,7 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
             callback?.onSwitchToTextKeyboard()
         }
         adapter.onPlay = { item -> playPreview(item) }
+        adapter.onSend = { item -> callback?.onSendSound(it) }
         val edit = findViewById<EditText>(R.id.sounds_search_edit)
         edit.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {

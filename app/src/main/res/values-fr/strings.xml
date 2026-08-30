@@ -503,4 +503,6 @@ Nouveau dictionnaire:
     <string name="sounds_error_network">pas de connexion à myinstants</string>
     <string name="sounds_retry">réessayer</string>
     <string name="sounds_preview_failed">impossible de jouer ce son</string>
+    <string name="sounds_sending">envoi…</string>
+    <string name="sounds_send_failed">échec du téléchargement</string>
 </resources>

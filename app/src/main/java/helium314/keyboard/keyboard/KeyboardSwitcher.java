@@ -37,6 +37,7 @@ import helium314.keyboard.keyboard.internal.KeyboardState;
 import helium314.keyboard.keyboard.internal.keyboard_parser.EmojiParserKt;
 import helium314.keyboard.keyboard.sounds.SoundsCallback;
 import helium314.keyboard.keyboard.sounds.SoundsPalettesView;
+import helium314.keyboard.keyboard.sounds.SoundDownloader;
 import helium314.keyboard.latin.InputView;
 import helium314.keyboard.latin.KeyboardWrapperView;
 import helium314.keyboard.latin.LatinIME;
@@ -765,7 +766,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mSoundsPalettesView = mCurrentInputView.findViewById(R.id.sounds_palettes_view);
         mSoundsPalettesView.setCallback(new SoundsCallback() {
             @Override public void onSendSound(helium314.keyboard.soundscore.SoundItem item) {
-                // task 8: SoundDownloader.downloadAndShare(mLatinIME, item);
+                SoundDownloader.downloadAndShare(mLatinIME, item);
             }
             @Override public void onSwitchToTextKeyboard() { setAlphabetKeyboard(); }
         });

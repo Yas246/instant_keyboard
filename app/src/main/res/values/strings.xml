@@ -1102,4 +1102,6 @@ New dictionary:
     <string name="sounds_error_network">no connection to myinstants</string>
     <string name="sounds_retry">retry</string>
     <string name="sounds_preview_failed">cannot play this sound</string>
+    <string name="sounds_sending">sending…</string>
+    <string name="sounds_send_failed">download failed</string>
 </resources>
