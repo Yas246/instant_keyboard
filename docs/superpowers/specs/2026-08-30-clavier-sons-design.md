@@ -167,3 +167,32 @@ Rien ne fait planter le clavier : toute erreur reste confinée dans le panneau.
 2. **Build CI (NDK/C++ de HeliBoard)** → réglé en premier (M0) avant tout code nouveau.
 3. **Attente de 15 min par itération** → lots de changements, jalons bien découpés.
 4. **HeliBoard évolue** (rebase difficile) → projet perso : pas de rebase prévu, on garde notre fork.
+
+---
+
+## Addendum (2026-08-30, post-device-test) — architecture finale
+
+Le test réel a fait évoluer deux choix de la spec initiale :
+
+1. **Recherche dans le clavier (pas d'activity, pas d'EditText).** L'approche « activity plein
+écran » (inspirée d'EmojiSearchActivity) a été rejetée au test : le clavier disparaît et la
+fenêtre IME n'a pas de focus système. Architecture finale, style GIF-keyboard : le panneau
+sons est un enfant du LinearLayout externe de `main_keyboard_frame`, AU-DESSUS du clavier qui
+reste visible. La saisie est routée par le pipeline du clavier lui-même :
+`KeyboardActionListenerImpl.onCodeInput` intercepte les codes positifs (≠ CODE_ENTER) et
+`onTextInput` quand le panneau est affiché, et alimente une barre de requête NON-focusable
+(`appendSearchChar`/`backspaceSearch`), recherche debouncée 350 ms. `LatinIME.onComputeInset`
+déduit la hauteur du panneau pour garder la conversation visible. La frappe normale est
+octet-pour-octet inchangée quand le panneau est fermé (garde `isShowingSoundsPalettes()`).
+
+2. **URLs myinstants.** Le site a supprimé ses pages `/fr/` : `trending()` passe par la racine
+`https://www.myinstants.com/` (redirection géo suivie par Jsoup) ; `search()` garde
+`/fr/search/?name=` (toujours valide). Les erreurs réseau sont affichées avec leur motif
+exact (classe+message) + hint « réessayer ».
+
+3. **Affichage.** Résultats en grille 3 colonnes (tuiles titre + ▶ ➤ ⭐), via GridLayoutManager.
+
+Autres correctifs issus du cycle de retours : interop `@JvmStatic` (Kotlin object ↔ Java),
+`SoundStore` en singleton process-wide (`SoundStores`), génération tokens `@Volatile`,
+toasts via `KeyboardSwitcher.showToast` (fiabilité API 33+), plafond de téléchargement 15 Mo
+et `catch Throwable`, keystore commité + Release GitHub `dev` (build CI unique).
