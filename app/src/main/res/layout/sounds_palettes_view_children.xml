@@ -5,30 +5,45 @@
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
+    <!-- Barre de requête « dans le clavier » : simple TextView non focusable — la fenêtre de
+         l'IME n'a pas le focus système, le texte arrive par le pipeline de touches
+         (KeyboardActionListenerImpl), jamais commité dans le champ de l'application.
+         Ellipsize start : la fin de la requête (la plus récente) reste visible. -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="48dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="8dp">
+        android:paddingStart="10dp"
+        android:paddingEnd="4dp">
 
-        <!-- La saisie se fait dans SoundsSearchActivity : un EditText dans le panneau
-             de l'IME ne peut pas recevoir le texte (c'est notre propre clavier qui est actif).
-             Mécanisme identique à EmojiSearchActivity d'HeliBoard. -->
         <TextView
-            android:id="@+id/sounds_search_button"
+            android:id="@+id/sounds_query_view"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_weight="1"
-            android:gravity="center"
-            android:padding="10dp"
+            android:gravity="center_vertical"
             android:maxLines="1"
-            android:text="@string/sounds_search_action" />
+            android:ellipsize="start"
+            android:textSize="16sp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:text="@string/search_sounds_hint" />
+
+        <TextView
+            android:id="@+id/sounds_clear_search"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:padding="6dp"
+            android:text="✕"
+            android:textSize="16sp"
+            android:visibility="invisible" />
 
         <TextView
             android:id="@+id/sounds_back_to_keyboard"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
             android:contentDescription="@string/sounds_back_to_keyboard"
             android:text="⌨"
             style="?attr/suggestionWordStyle" />
@@ -59,6 +74,6 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/sounds_recycler"
         android:layout_width="match_parent"
-        android:layout_height="220dp"
+        android:layout_height="180dp"
         android:visibility="gone" />
 </LinearLayout>

@@ -1190,6 +1190,11 @@ public class LatinIME extends InputMethodService implements
         }
         final int stripHeight = mKeyboardSwitcher.isShowingStripContainer() ? mKeyboardSwitcher.getStripContainer().getHeight() : 0;
         int visibleTopY = inputHeight - visibleKeyboardView.getHeight() - stripHeight;
+        // The sounds panel is a sibling ABOVE the keyboard wrapper: the app content must also
+        // stay clear of the panel, and the panel belongs to the touchable region.
+        if (mKeyboardSwitcher.isShowingSoundsPalettes()) {
+            visibleTopY -= mKeyboardSwitcher.getSoundsPalettesView().getHeight();
+        }
 
         if (hasSuggestionStripView()) {
             mSuggestionStripView.setMoreSuggestionsHeight(visibleTopY);

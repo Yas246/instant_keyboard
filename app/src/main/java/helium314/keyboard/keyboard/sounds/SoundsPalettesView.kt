@@ -2,7 +2,6 @@
 package helium314.keyboard.keyboard.sounds
 
 import android.content.Context
-import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.os.Handler
@@ -12,13 +11,20 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.R
 import helium314.keyboard.soundscore.MyInstantsSource
 import helium314.keyboard.soundscore.SoundItem
 
+/**
+ * Panneau sons « dans le clavier » (style recherche GIF SwiftKey/Gboard) : le clavier de frappe
+ * reste visible SOUS le panneau et les touches y sont routées par KeyboardActionListenerImpl.
+ * La fenêtre de l'IME n'ayant pas le focus système, la barre de requête est une simple TextView
+ * non focusable — jamais d'EditText, la requête n'est jamais commitée dans le champ de l'app,
+ * et la conversation reste visible au-dessus (pas d'activity plein écran).
+ */
 class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(context, attrs) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -30,16 +36,20 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     @Volatile private var searchGeneration = 0
     private val store by lazy { SoundStores.get(context) }
     private var currentTab = TAB_TRENDING
+    // requête de recherche : alimentée par appendSearchChar/backspaceSearch (pipeline de touches)
+    private var query = ""
+    private var searchRunnable: Runnable? = null
 
     init {
         LayoutInflater.from(context).inflate(R.layout.sounds_palettes_view_children, this, true)
         findViewById<RecyclerView>(R.id.sounds_recycler).apply {
-            layoutManager = LinearLayoutManager(context)
+            layoutManager = GridLayoutManager(context, GRID_SPAN_COUNT)
             adapter = this@SoundsPalettesView.adapter
         }
         findViewById<TextView>(R.id.sounds_back_to_keyboard).setOnClickListener {
             callback?.onSwitchToTextKeyboard()
         }
+        findViewById<TextView>(R.id.sounds_clear_search).setOnClickListener { clearSearch() }
         adapter.onPlay = { item -> playPreview(item) }
         adapter.onSend = { item ->
             store.addRecent(item) // récents mis à jour avant l'envoi effectif
@@ -50,42 +60,91 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
             store.toggleFavorite(item)
             adapter.notifyDataSetChanged()
         }
-        // Plan B : la saisie passe par SoundsSearchActivity. Un EditText dans le panneau de
-        // l'IME ne reçoit jamais le texte (notre propre clavier est la méthode de saisie
-        // active) ; HeliBoard utilise le même mécanisme d'activity pour la recherche emoji.
-        findViewById<TextView>(R.id.sounds_search_button).apply {
-            text = "🔍 " + context.getString(R.string.sounds_search_action)
-            setOnClickListener {
-                context.startActivity(
-                    Intent(context, SoundsSearchActivity::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-                )
-            }
-        }
-        // onglets : populaires (réseau), favoris / récents (store local)
+        // onglets : populaires (réseau), favoris / récents (store local) — quitter la recherche
         findViewById<TextView>(R.id.sounds_tab_trending).setOnClickListener { switchTab(TAB_TRENDING) }
         findViewById<TextView>(R.id.sounds_tab_favorites).setOnClickListener { switchTab(TAB_FAVORITES) }
         findViewById<TextView>(R.id.sounds_tab_recents).setOnClickListener { switchTab(TAB_RECENTS) }
-        // taper le message d'état relance l'onglet courant : « réessayer »
-        // (la recherche vit dans SoundsSearchActivity, plus d'état de requête ici)
-        findViewById<TextView>(R.id.sounds_status_view).setOnClickListener { switchTab(currentTab) }
+        // taper le message d'état relance l'onglet courant ou la recherche : « réessayer »
+        findViewById<TextView>(R.id.sounds_status_view).setOnClickListener {
+            if (query.isEmpty()) switchTab(currentTab) else scheduleSearch(immediate = true)
+        }
     }
 
     fun setCallback(cb: SoundsCallback?) { callback = cb }
 
     fun startSoundsPalettes() {
-        // l'état (onglet, recherche) survit à la fermeture/réouverture du panneau
+        // l'état (onglet, requête, résultats) survit à la fermeture/réouverture du panneau :
+        // on resynchronise la barre, et si une requête est conservée on relance sa recherche
+        // (une recherche en vol / en debounce a été annulée par stopSoundsPalettes)
+        updateQueryView()
+        if (query.isNotEmpty()) { scheduleSearch(immediate = true); return }
         if (adapter.items.isEmpty()) loadInBackground { source.trending() }
     }
 
     fun stopSoundsPalettes() {
         searchGeneration++
+        cancelPendingSearch()
         stopPreview()
         mainHandler.removeCallbacksAndMessages(null)
     }
 
+    // -------- recherche « dans le clavier » : API appelée par KeyboardActionListenerImpl --------
+
+    /** ajoute un caractère à la requête et (re)lance la recherche avec debounce */
+    fun appendSearchChar(c: Char) {
+        query += c
+        updateQueryView()
+        scheduleSearch()
+    }
+
+    /** efface le dernier caractère ; requête vide -> retour au contenu de l'onglet courant */
+    fun backspaceSearch() {
+        if (query.isEmpty()) return
+        query = query.dropLast(1)
+        updateQueryView()
+        if (query.isEmpty()) switchTab(currentTab) else scheduleSearch()
+    }
+
+    /** vide la requête et revient au contenu de l'onglet courant */
+    fun clearSearch() = switchTab(currentTab)
+
+    fun queryText(): String = query
+
+    private fun scheduleSearch(immediate: Boolean = false) {
+        cancelPendingSearch()
+        val runnable = Runnable { runSearch() }
+        searchRunnable = runnable
+        if (immediate) mainHandler.post(runnable)
+        else mainHandler.postDelayed(runnable, SEARCH_DEBOUNCE_MS)
+    }
+
+    private fun cancelPendingSearch() {
+        searchRunnable?.let(mainHandler::removeCallbacks)
+        searchRunnable = null
+    }
+
+    private fun runSearch() {
+        searchRunnable = null
+        val q = query.trim()
+        if (q.isEmpty()) { switchTab(currentTab); return }
+        loadInBackground(context.getString(R.string.sounds_no_results)) { source.search(q) }
+    }
+
+    private fun updateQueryView() {
+        findViewById<TextView>(R.id.sounds_query_view).text =
+            if (query.isEmpty()) context.getString(R.string.search_sounds_hint) else query
+        findViewById<TextView>(R.id.sounds_clear_search).visibility =
+            if (query.isEmpty()) INVISIBLE else VISIBLE
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
     private fun switchTab(tab: Int) {
         currentTab = tab
+        // changer d'onglet quitte la recherche : la barre revient au texte d'aide
+        cancelPendingSearch()
+        query = ""
+        updateQueryView()
         when (tab) {
             TAB_TRENDING -> loadInBackground { source.trending() }
             TAB_FAVORITES -> { searchGeneration++; showList(store.favorites()) }
@@ -101,7 +160,8 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         adapter.notifyDataSetChanged()
     }
 
-    private fun loadInBackground(load: () -> List<SoundItem>) {
+    // le lambda en DERNIER paramètre : appelable en trailing lambda, emptyMessage gardant sa valeur par défaut
+    private fun loadInBackground(emptyMessage: String = context.getString(R.string.sounds_empty), load: () -> List<SoundItem>) {
         val gen = ++searchGeneration
         showStatus(context.getString(R.string.sounds_empty)) // sera remplacé par un spinner plus tard
         Thread {
@@ -117,10 +177,7 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
             }
             if (gen != searchGeneration) return@Thread
             mainHandler.post {
-                findViewById<RecyclerView>(R.id.sounds_recycler).visibility = if (items.isEmpty()) GONE else VISIBLE
-                findViewById<TextView>(R.id.sounds_status_view).visibility = if (items.isEmpty()) VISIBLE else GONE
-                adapter.items = items
-                adapter.notifyDataSetChanged()
+                if (items.isEmpty()) showStatus(emptyMessage) else showList(items)
             }
         }.start()
     }
@@ -172,8 +229,8 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
 
     private class SoundsAdapter : RecyclerView.Adapter<SoundsAdapter.Holder>() {
         var items: List<SoundItem> = emptyList()
-        var onPlay: ((SoundItem) -> Unit)? = null   // ▶ branché en task 7
-        var onSend: ((SoundItem) -> Unit)? = null   // ➤ branché en task 8
+        var onPlay: ((SoundItem) -> Unit)? = null
+        var onSend: ((SoundItem) -> Unit)? = null
         var favoriteListener: ((SoundItem) -> Unit)? = null
         var isFavorite: (SoundItem) -> Boolean = { false }
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
@@ -192,5 +249,9 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         class Holder(v: android.view.View) : RecyclerView.ViewHolder(v)
     }
 
-    private companion object { const val TAB_TRENDING = 0; const val TAB_FAVORITES = 1; const val TAB_RECENTS = 2 }
+    private companion object {
+        const val TAB_TRENDING = 0; const val TAB_FAVORITES = 1; const val TAB_RECENTS = 2
+        const val GRID_SPAN_COUNT = 3
+        const val SEARCH_DEBOUNCE_MS = 350L
+    }
 }

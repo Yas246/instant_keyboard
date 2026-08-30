@@ -107,6 +107,19 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
                 keyboardSwitcher.toggleSoundsPanel()
                 return
             }
+            // ⌫ alimente la barre de recherche du panneau sons (pas le champ de l'app)
+            KeyCode.DELETE -> if (keyboardSwitcher.isShowingSoundsPalettes()) {
+                keyboardSwitcher.soundsPalettesView?.backspaceSearch()
+                return
+            }
+        }
+        // Panneau sons affiché : les caractères (codes positifs, lettres + espaces + ponctuation,
+        // déjà casés par le layout si shift actif) alimentent la recherche « dans le clavier ».
+        // Enter est exclu (CODE_ENTER = '\n' = 10, sinon il polluerait la requête).
+        if (keyboardSwitcher.isShowingSoundsPalettes() && primaryCode > 0
+                && primaryCode != Constants.CODE_ENTER) {
+            keyboardSwitcher.soundsPalettesView?.appendSearchChar(primaryCode.toChar())
+            return
         }
         val mkv = keyboardSwitcher.mainKeyboardView
 
@@ -126,7 +139,15 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         metaAfterCodeInput(primaryCode)
     }
 
-    override fun onTextInput(text: String?) = latinIME.onTextInput(text)
+    override fun onTextInput(text: String?) {
+        // texte en batch (sélection de suggestion, popups multi-points de code, presse-papiers) :
+        // panneau sons affiché -> alimente la requête au lieu du champ de l'application
+        if (keyboardSwitcher.isShowingSoundsPalettes()) {
+            text?.forEach { keyboardSwitcher.soundsPalettesView?.appendSearchChar(it) }
+            return
+        }
+        latinIME.onTextInput(text)
+    }
 
     override fun onStartBatchInput() = latinIME.onStartBatchInput()
 

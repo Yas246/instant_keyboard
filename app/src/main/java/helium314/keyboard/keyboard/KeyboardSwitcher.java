@@ -347,6 +347,9 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mClipboardHistoryView.stopClipboardHistory();
         mSoundsPalettesView.setVisibility(View.GONE);
         mSoundsPalettesView.stopSoundsPalettes();
+        // common funnel of every keyboard-switch hide path: recompute insets so the app content
+        // no longer keeps the height of a sounds panel that just went away
+        mCurrentInputView.post(() -> mCurrentInputView.requestApplyInsets());
     }
 
     // Implements {@link KeyboardState.SwitchActions}.
@@ -367,6 +370,9 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mClipboardHistoryView.setVisibility(View.GONE);
         mSoundsPalettesView.stopSoundsPalettes();
         mSoundsPalettesView.setVisibility(View.GONE);
+        // NOT going through setMainKeyboardFrame: insets must be recomputed here too, the sounds
+        // panel had extra height the app content should no longer keep
+        mCurrentInputView.post(() -> mCurrentInputView.requestApplyInsets());
         mEmojiPalettesView.startEmojiPalettes(mKeyboardView.getKeyVisualAttribute(),
                 mLatinIME.getCurrentInputEditorInfo(), mLatinIME.mKeyboardActionListener);
         mEmojiPalettesView.setVisibility(View.VISIBLE);
@@ -391,6 +397,9 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mEmojiPalettesView.setVisibility(View.GONE);
         mSoundsPalettesView.stopSoundsPalettes();
         mSoundsPalettesView.setVisibility(View.GONE);
+        // NOT going through setMainKeyboardFrame: insets must be recomputed here too, the sounds
+        // panel had extra height the app content should no longer keep
+        mCurrentInputView.post(() -> mCurrentInputView.requestApplyInsets());
         mClipboardHistoryView.startClipboardHistory(mLatinIME.getClipboardHistoryManager(), mKeyboardView.getKeyVisualAttribute(),
                 mLatinIME.getCurrentInputEditorInfo(), mLatinIME.mKeyboardActionListener);
         mClipboardHistoryView.setVisibility(View.VISIBLE);
@@ -401,7 +410,8 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
             Log.d(TAG, "setSoundsKeyboard");
         }
         mMainKeyboardFrame.setVisibility(View.VISIBLE);
-        mKeyboardView.setVisibility(View.GONE);
+        // The keyboard stays VISIBLE: the sounds panel is shown ABOVE it (GIF-search style) and
+        // the typed keys are routed to the panel's search bar (see KeyboardActionListenerImpl).
         mSuggestionStripView.setVisibility(View.GONE);
         mStripContainer.setVisibility(View.GONE);
         mEmojiTabStripView.setVisibility(View.GONE);
@@ -410,6 +420,10 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mClipboardHistoryView.setVisibility(View.GONE);
         mSoundsPalettesView.startSoundsPalettes();
         mSoundsPalettesView.setVisibility(View.VISIBLE);
+        // The panel adds height on top of the keyboard, so the IME window is resized. Make sure
+        // the insets are recomputed, otherwise app content may slide behind the panel
+        // (see LatinIME#onComputeInsets).
+        mCurrentInputView.post(() -> mCurrentInputView.requestApplyInsets());
     }
 
     public void toggleSoundsPanel() {
@@ -696,14 +710,19 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         return mEmojiPalettesView;
     }
 
+    public SoundsPalettesView getSoundsPalettesView() {
+        return mSoundsPalettesView;
+    }
+
     public View getVisibleKeyboardView() {
         if (isShowingEmojiPalettes()) {
             return mEmojiPalettesView;
         } else if (isShowingClipboardHistory()) {
             return mClipboardHistoryView;
-        } else if (isShowingSoundsPalettes()) {
-            return mSoundsPalettesView;
         }
+        // When the sounds panel is shown the keyboard itself is still visible below it, so
+        // mKeyboardView stays the visible keyboard view (used by KeyboardWrapperView one-handed
+        // layout and LatinIME#onEvaluateFullscreenMode).
         return mKeyboardView;
     }
 

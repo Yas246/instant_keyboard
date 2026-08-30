@@ -16,6 +16,16 @@
         android:id="@+id/strip_container"
         layout="@layout/strip_container" />
 
+    <!-- Panneau sons : enfant direct du LinearLayout externe, AU-DESSUS du clavier.
+         Il n'est plus dans KeyboardWrapperView : le clavier de frappe reste visible
+         dessous et la saisie est routée vers la barre de recherche du panneau
+         (KeyboardActionListenerImpl), style recherche GIF SwiftKey/Gboard. -->
+    <helium314.keyboard.keyboard.sounds.SoundsPalettesView
+        android:id="@+id/sounds_palettes_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
     <!-- To ensure that key preview popup is correctly placed when the current system locale is
          one of RTL locales, layoutDirection="ltr" is needed in the SDK version 17+. -->
     <helium314.keyboard.latin.KeyboardWrapperView
@@ -35,13 +45,6 @@
         <include
             android:id="@+id/clipboard_history_view"
             layout="@layout/clipboard_history_view" />
-
-        <helium314.keyboard.keyboard.sounds.SoundsPalettesView
-            android:id="@+id/sounds_palettes_view"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:visibility="gone" />
 
         <ImageButton
             android:id="@+id/btn_stop_one_handed_mode"
