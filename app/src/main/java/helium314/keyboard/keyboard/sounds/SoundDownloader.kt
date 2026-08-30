@@ -11,6 +11,7 @@ import org.jsoup.Jsoup
 import java.io.File
 
 object SoundDownloader {
+    @JvmStatic
     fun downloadAndShare(context: Context, item: SoundItem) {
         Toast.makeText(context, R.string.sounds_sending, Toast.LENGTH_SHORT).show()
         Thread {
