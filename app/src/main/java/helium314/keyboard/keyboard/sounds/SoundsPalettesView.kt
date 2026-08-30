@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -240,13 +241,22 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
             val item = items[position]
             val view = holder.itemView
             view.findViewById<TextView>(R.id.sound_title).text = item.title
-            view.findViewById<TextView>(R.id.sound_play).setOnClickListener { onPlay?.invoke(item) }
-            view.findViewById<TextView>(R.id.sound_send).setOnClickListener { onSend?.invoke(item) }
+            // toute la tuile est une cible de lecture : le geste naturel déclenche onPlay
+            view.tap { onPlay?.invoke(item) }
+            view.findViewById<TextView>(R.id.sound_play).tap { onPlay?.invoke(item) }
+            view.findViewById<TextView>(R.id.sound_send).tap { onSend?.invoke(item) }
             val fav = view.findViewById<TextView>(R.id.sound_favorite)
             fav.text = if (isFavorite(item)) "★" else "☆"
-            fav.setOnClickListener { favoriteListener?.invoke(item) }
+            fav.tap { favoriteListener?.invoke(item) }
         }
-        class Holder(v: android.view.View) : RecyclerView.ViewHolder(v)
+        // retour tactile systématique : « quand je clique sur play il faut que je SENS que j'ai cliqué »
+        private fun View.tap(action: () -> Unit) {
+            setOnClickListener { v ->
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                action()
+            }
+        }
+        class Holder(v: View) : RecyclerView.ViewHolder(v)
     }
 
     private companion object {

@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
-<!-- Tuile de la grille (3 colonnes) : titre centré sur 2 lignes + rangée d'actions
-     lecture / envoi / favori réparties uniformément. -->
+<!-- Tuile de la grille (3 colonnes) : texture « carte » + ripple sur toute la surface,
+     titre centré sur 1 ligne + rangée d'actions lecture / envoi / favori
+     réparties uniformément (ripple borderless pour un retour visuel au toucher). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="center_horizontal"
-    android:padding="8dp"
-    android:background="?android:attr/selectableItemBackground">
+    android:layout_margin="4dp"
+    android:padding="10dp"
+    android:background="@drawable/bg_sound_tile">
 
     <TextView
         android:id="@+id/sound_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:maxLines="2"
+        android:maxLines="1"
         android:ellipsize="end"
-        android:textSize="13sp"
+        android:textSize="14sp"
         android:textStyle="bold" />
 
     <LinearLayout
@@ -28,14 +30,17 @@
         <TextView android:id="@+id/sound_play" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
             android:gravity="center" android:padding="6dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
             android:text="▶" android:textSize="16sp" />
         <TextView android:id="@+id/sound_send" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
             android:gravity="center" android:padding="6dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
             android:text="➤" android:textSize="16sp" />
         <TextView android:id="@+id/sound_favorite" android:layout_width="0dp"
             android:layout_height="wrap_content" android:layout_weight="1"
             android:gravity="center" android:padding="6dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
             android:text="☆" android:textSize="16sp" />
     </LinearLayout>
 </LinearLayout>
