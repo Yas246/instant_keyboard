@@ -420,6 +420,13 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mClipboardHistoryView.setVisibility(View.GONE);
         mSoundsPalettesView.startSoundsPalettes();
         mSoundsPalettesView.setVisibility(View.VISIBLE);
+        // expérimentation : sonde des MIME déclarés par l'éditeur courant (commitContent audio possible ?)
+        try {
+            android.view.inputmethod.EditorInfo ei = mLatinIME.getCurrentInputEditorInfo();
+            String[] mimes = ei == null ? null : androidx.core.view.inputmethod.EditorInfoCompat.getContentMimeTypes(ei);
+            String joined = mimes == null || mimes.length == 0 ? "(null/empty)" : android.text.TextUtils.join(", ", mimes);
+            showToast("MIMEs: " + joined, true);
+        } catch (Throwable t) { /* probe must never break the panel */ }
         // The panel adds height on top of the keyboard, so the IME window is resized. Make sure
         // the insets are recomputed, otherwise app content may slide behind the panel
         // (see LatinIME#onComputeInsets).
@@ -788,7 +795,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mSoundsPalettesView = mCurrentInputView.findViewById(R.id.sounds_palettes_view);
         mSoundsPalettesView.setCallback(new SoundsCallback() {
             @Override public void onSendSound(helium314.keyboard.soundscore.SoundItem item) {
-                SoundDownloader.downloadAndShare(mLatinIME, item);
+                SoundDownloader.send(mLatinIME, item);
             }
             @Override public void onSwitchToTextKeyboard() { setAlphabetKeyboard(); }
         });

@@ -1105,4 +1105,6 @@ New dictionary:
     <string name="sounds_preview_failed">cannot play this sound</string>
     <string name="sounds_sending">sending…</string>
     <string name="sounds_send_failed">download failed</string>
+    <string name="sounds_direct_sent">sent directly to the app</string>
+    <string name="sounds_share_fallback">opened share sheet (no direct audio support)</string>
 </resources>

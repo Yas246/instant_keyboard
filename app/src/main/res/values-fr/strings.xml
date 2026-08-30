@@ -506,4 +506,6 @@ Nouveau dictionnaire:
     <string name="sounds_preview_failed">impossible de jouer ce son</string>
     <string name="sounds_sending">envoi…</string>
     <string name="sounds_send_failed">échec du téléchargement</string>
+    <string name="sounds_direct_sent">envoyé directement à l\'app</string>
+    <string name="sounds_share_fallback">feuille de partage (pas de support audio direct)</string>
 </resources>
