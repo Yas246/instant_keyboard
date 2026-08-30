@@ -15,8 +15,10 @@ class MyInstantsSource(
         return parse(doc)
     }
 
+    // racine seule : /fr/ n'existe plus (404) ; la racine redirige vers la page géolocalisée
+    // (ex. /en/index/bj/) qui contient les mêmes div.instant
     override fun trending(): List<SoundItem> {
-        val doc = Jsoup.connect("$baseUrl/fr/").userAgent(USER_AGENT).timeout(TIMEOUT_MS).get()
+        val doc = Jsoup.connect("$baseUrl/").userAgent(USER_AGENT).timeout(TIMEOUT_MS).get()
         return parse(doc)
     }
 
