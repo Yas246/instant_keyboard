@@ -27,6 +27,8 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     private val adapter = SoundsAdapter()
     private var player: MediaPlayer? = null
     private var searchRunnable: Runnable? = null
+    private var previewGeneration = 0
+    private var searchGeneration = 0
 
     init {
         LayoutInflater.from(context).inflate(R.layout.sounds_palettes_view_children, this, true)
@@ -40,7 +42,10 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         adapter.onPlay = { item -> playPreview(item) }
         val edit = findViewById<EditText>(R.id.sounds_search_edit)
         edit.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_SEARCH) { runSearch(edit.text.toString()); true } else false
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                searchRunnable?.let(mainHandler::removeCallbacks)
+                runSearch(edit.text.toString()); true
+            } else false
         }
         edit.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) {
@@ -63,6 +68,7 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     fun startSoundsPalettes() { loadInBackground { source.trending() } }
 
     fun stopSoundsPalettes() {
+        searchGeneration++
         stopPreview()
         mainHandler.removeCallbacksAndMessages(null)
     }
@@ -70,12 +76,16 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     private fun runSearch(query: String) = loadInBackground { source.search(query) }
 
     private fun loadInBackground(load: () -> List<SoundItem>) {
+        val gen = ++searchGeneration
         showStatus(context.getString(R.string.sounds_empty)) // sera remplacé par un spinner plus tard
         Thread {
             val items = try { load() } catch (e: Exception) {
-                mainHandler.post { showStatus(context.getString(R.string.sounds_error_network)) }
+                if (gen == searchGeneration) {
+                    mainHandler.post { showStatus(context.getString(R.string.sounds_error_network)) }
+                }
                 return@Thread
             }
+            if (gen != searchGeneration) return@Thread
             mainHandler.post {
                 findViewById<RecyclerView>(R.id.sounds_recycler).visibility = if (items.isEmpty()) GONE else VISIBLE
                 findViewById<TextView>(R.id.sounds_status_view).visibility = if (items.isEmpty()) VISIBLE else GONE
@@ -92,28 +102,40 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
 
     private fun playPreview(item: SoundItem) {
         stopPreview()
+        val gen = previewGeneration
         Thread {
+            val p = MediaPlayer()
             try {
-                val p = MediaPlayer()
                 p.setAudioAttributes(
                     AudioAttributes.Builder().setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
                 )
                 p.setDataSource(item.mediaUrl)
                 p.setOnCompletionListener { mainHandler.post { stopPreview() } }
                 p.prepare() // blocking, background thread
+                if (gen != previewGeneration) {
+                    runCatching { p.release() }
+                    return@Thread
+                }
                 player = p
                 p.start()
             } catch (e: Exception) {
-                player = null
-                mainHandler.post {
-                    android.widget.Toast.makeText(context, R.string.sounds_preview_failed, Toast.LENGTH_SHORT).show()
+                runCatching { p.release() }
+                if (gen == previewGeneration) {
+                    player = null
+                    mainHandler.post {
+                        android.widget.Toast.makeText(context, R.string.sounds_preview_failed, Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }.start()
     }
 
     private fun stopPreview() {
-        player?.let { runCatching { it.stop(); it.release() } }
+        previewGeneration++
+        player?.let {
+            runCatching { it.stop() }
+            runCatching { it.release() }
+        }
         player = null
     }
 
