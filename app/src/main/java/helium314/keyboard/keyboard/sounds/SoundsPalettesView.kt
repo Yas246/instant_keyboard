@@ -83,20 +83,21 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     fun setCallback(cb: SoundsCallback?) { callback = cb }
 
     fun startSoundsPalettes() {
-        // l'état (onglet, requête, résultats) survit à la fermeture/réouverture du panneau :
-        // on resynchronise la barre, et si une requête est conservée on relance sa recherche
-        // (une recherche en vol / en debounce a été annulée par stopSoundsPalettes)
+        // ouverture = état frais : switchTab vide la requête, resynchronise la barre
+        // et recharge la grille tendance (un seul chargement, pas de double requête)
         mainHandler.removeCallbacks(cursorRunnable)
         cursorVisible = true
         mainHandler.postDelayed(cursorRunnable, 500)
-        updateQueryView()
-        if (query.isNotEmpty()) { scheduleSearch(immediate = true); return }
-        if (adapter.items.isEmpty()) loadInBackground { source.trending() }
+        switchTab(TAB_TRENDING)
     }
 
     fun stopSoundsPalettes() {
         searchGeneration++
+        // fermeture = remise à zéro : la requête ne survit pas au panneau, et aucune
+        // recherche en debounce ne doit repartir une fois le panneau masqué
+        query = ""
         cancelPendingSearch()
+        updateQueryView()
         stopPreview()
         mainHandler.removeCallbacks(cursorRunnable)
         mainHandler.removeCallbacksAndMessages(null)
