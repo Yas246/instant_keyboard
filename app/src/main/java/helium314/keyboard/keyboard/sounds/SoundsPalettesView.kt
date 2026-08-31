@@ -40,6 +40,15 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     // requête de recherche : alimentée par appendSearchChar/backspaceSearch (pipeline de touches)
     private var query = ""
     private var searchRunnable: Runnable? = null
+    // curseur simulé : la fenêtre IME n'a pas le focus système, on dessine un caret qui clignote
+    private var cursorVisible = true
+    private val cursorRunnable = object : Runnable {
+        override fun run() {
+            cursorVisible = !cursorVisible
+            updateQueryView()
+            mainHandler.postDelayed(this, 500)
+        }
+    }
 
     init {
         LayoutInflater.from(context).inflate(R.layout.sounds_palettes_view_children, this, true)
@@ -77,6 +86,9 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         // l'état (onglet, requête, résultats) survit à la fermeture/réouverture du panneau :
         // on resynchronise la barre, et si une requête est conservée on relance sa recherche
         // (une recherche en vol / en debounce a été annulée par stopSoundsPalettes)
+        mainHandler.removeCallbacks(cursorRunnable)
+        cursorVisible = true
+        mainHandler.postDelayed(cursorRunnable, 500)
         updateQueryView()
         if (query.isNotEmpty()) { scheduleSearch(immediate = true); return }
         if (adapter.items.isEmpty()) loadInBackground { source.trending() }
@@ -86,6 +98,7 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         searchGeneration++
         cancelPendingSearch()
         stopPreview()
+        mainHandler.removeCallbacks(cursorRunnable)
         mainHandler.removeCallbacksAndMessages(null)
     }
 
@@ -132,8 +145,9 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
     }
 
     private fun updateQueryView() {
-        findViewById<TextView>(R.id.sounds_query_view).text =
-            if (query.isEmpty()) context.getString(R.string.search_sounds_hint) else query
+        // le caret n'existe que dans l'affichage : la requête réelle reste intacte
+        val base = if (query.isEmpty()) context.getString(R.string.search_sounds_hint) else query
+        findViewById<TextView>(R.id.sounds_query_view).text = base + if (cursorVisible) CURSOR_ON else CURSOR_OFF
         findViewById<TextView>(R.id.sounds_clear_search).visibility =
             if (query.isEmpty()) INVISIBLE else VISIBLE
     }
@@ -263,5 +277,8 @@ class SoundsPalettesView(context: Context, attrs: AttributeSet?) : LinearLayout(
         const val TAB_TRENDING = 0; const val TAB_FAVORITES = 1; const val TAB_RECENTS = 2
         const val GRID_SPAN_COUNT = 3
         const val SEARCH_DEBOUNCE_MS = 350L
+        // caret décoratif : uniquement dans l'affichage, jamais dans `query`
+        const val CURSOR_ON = "▍"
+        const val CURSOR_OFF = " "
     }
 }
